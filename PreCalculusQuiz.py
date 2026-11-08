@@ -37,6 +37,9 @@ with st.sidebar:
 def load_data():
     df_q = pd.read_excel("PreCalculusQuiz.xlsx", sheet_name="Sheet1").fillna("")
     
+    # Filter out empty/ghost rows where the Question cell is blank
+    df_q = df_q[df_q['Question'].astype(str).str.strip() != ""]
+    
     # Try reading title from Metadata sheet if it exists
     try:
         df_meta = pd.read_excel("PreCalculusQuiz.xlsx", sheet_name="Metadata")
@@ -87,7 +90,7 @@ if app_mode == "Take Quiz":
                 
                 options_display = [f"{k}) {v}" for k, v in active_options.items()]
                 
-                # Unique key prevents Streamlit duplicate widget errors
+                # Unique key using both Q ID and iteration index
                 ans_raw = st.radio(f"Select for Q{q_id}:", options_display, key=f"q{q_id}_{index}", index=None)
                 student_answers[f"Q{q_id}"] = ans_raw[0] if ans_raw else None
                 st.divider()
