@@ -87,7 +87,8 @@ if app_mode == "Take Quiz":
                 
                 options_display = [f"{k}) {v}" for k, v in active_options.items()]
                 
-                ans_raw = st.radio(f"Select for Q{q_id}:", options_display, key=f"q{q_id}", index=None)
+                # Unique key prevents Streamlit duplicate widget errors
+                ans_raw = st.radio(f"Select for Q{q_id}:", options_display, key=f"q{q_id}_{index}", index=None)
                 student_answers[f"Q{q_id}"] = ans_raw[0] if ans_raw else None
                 st.divider()
 
@@ -185,4 +186,49 @@ elif app_mode == "Teacher Admin":
         pwd_input = st.text_input("Enter Admin Password", type="password")
         if st.button("Login"):
             if pwd_input == ADMIN_PASSWORD:
-                st.session
+                st.session_state.admin_authenticated = True
+                st.success("Authenticated successfully!")
+                st.rerun()
+            else:
+                st.error("Incorrect password.")
+    else:
+        col_refresh, col_logout = st.columns([1, 1])
+        with col_refresh:
+            if st.button("🔄 Refresh Data"):
+                st.rerun()
+        with col_logout:
+            if st.button("🚪 Logout"):
+                st.session_state.admin_authenticated = False
+                st.rerun()
+
+        try:
+            response = supabase.table("PreCalculus-Quiz-Submissions").select("*").execute()
+            records = response.data
+            
+            if records:
+                results_df = pd.DataFrame(records)
+                
+                # Class Overview Metrics
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Total Exit Tickets", len(results_df))
+                if "Score" in results_df.columns:
+                    m2.metric("Average Class Score", f"{results_df['Score'].mean():.1f}")
+                if "Student_ID" in results_df.columns:
+                    m3.metric("Unique Students", results_df["Student_ID"].nunique())
+
+                st.subheader("Submissions Log")
+                st.dataframe(results_df, use_container_width=True)
+                
+                # Export Button
+                csv_data = results_df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="📥 Export All Assessment Data (CSV)",
+                    data=csv_data,
+                    file_name="precalculus_quiz_analytics.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.info("No exit tickets submitted yet.")
+                
+        except Exception as e:
+            st.error(f"Could not load data from database: {e}")
